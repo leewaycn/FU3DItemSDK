@@ -45,8 +45,12 @@
 	//@gparam L1_log_intensity {"type":"slider","min":-4,"max":4,"default_value":-2}
 	///////////////////////////
 	//以下是材质参数
-	//物体的类型,一是镂空,如face_hack；二是会随着脑袋旋转和缩放，例如头盔；三是只会跟着脑袋位移变化和大小的缩放，例如body
-	//@mparam obj_type {"type":"slider","min":0,"max":2.1,"default_value":1.05}
+	/*物体的类型,一是镂空,[0,0.25]；
+				二是会完全随着脑袋旋转和缩放,(0.25,0.5]；
+				三是权重控制旋转的幅度（前提是有对应主obj的weight.png,例如aa.obj对应的权重贴图是aa_weight.png）,(0.5,0.75]；
+				四是只会跟着脑袋位移变化和大小的缩放，例如身体(0.75,1]。
+	*/
+	//@mparam obj_type {"type":"slider","min":0,"max":1,"default_value":0.3}
 	//法向贴图，就是蓝了吧唧的那种，不是bump map哦～bump map要先转一下哦～～ 默认的grey.png等于没有贴图
 	//@mparam tex_normal {"type":"texture","default_value":"grey.png"}
 	//法向贴图的强度，为了照顾没有法向贴图的模型，强度默认是0，所以设了法向贴图之后要把强度拽高点才能看到效果
@@ -294,19 +298,25 @@
 					var pass = 0;
 					//遍历每个材质
 					blendshape.drawcalls.forEach(function(dc){
-					//取出编辑器提供的材质参数
+						//取出编辑器提供的材质参数
 						var matex=(materials_json[dc.name]||{});
+						if(V(matex.is_hair,0)>0.5)
+						{
+							matex.roughness = 1;
+						}
 						//判断这个材质是不是应该在当前这个pass画的
 						if((V(matex.is_hair,0)>0.5)!=(pass==1)){
 							return;
 						}
 						//face hack
-						if(matex.obj_type<=0.7){
+						if(V(matex.obj_type,0.3)<=0.25){
 							//console.log(dc.mat.tex);
 							var mat=FaceUnity.CreateViewMatrix(
 								[-params.rotation[0],-params.rotation[1],-params.rotation[2],params.rotation[3]],
 								params.translation);
-							
+							var mat_cam=FaceUnity.CreateViewMatrix(
+								[0,0,0,1],
+								params.translation);
 							
 							if(V(matex.is_eye,dc.is_eye)){
 								/*
@@ -338,6 +348,12 @@
 							FaceUnity.RenderBlendshapeComponent(blendshape,dc,s_vert_shader,s_frag_shader,{
 								scales:[dc.scales[0]*SCALE,dc.scales[1]*SCALE,-dc.scales[2]*SCALE],
 								mat_view:mat,
+								mat_cam:mat_cam,
+								quatR1:[params.rotation[0],params.rotation[1],params.rotation[2],params.rotation[3]],
+								quatT1:[0,0,0],//[params.translation[0],params.translation[1],params.translation[2],1],
+								quatR2:[0,0,0,1],
+								quatT2:[0,0,0],//[mat2[12]-center[0],mat2[13]-center[1],mat2[14]-center[2]],
+								obj_type:V(matex.obj_type, 0.3),
 								mat_proj:FaceUnity.CreateProjectionMatrix(),
 								tex_albedo:tex_map[V(matex.tex_albedo,dc.mat.tex)],
 								tex_normal:tex_map[V(matex.tex_normal,"grey.png")],
@@ -361,7 +377,6 @@
 							dc.use_custom_gl_states = 0;
 						}
 					});// end blendshape.drawcalls.forEach(function(dc)
-					
 				}
 				
 				//mesh
@@ -392,20 +407,25 @@
 						blendshape.drawcalls.forEach(function(dc){
 						//取出编辑器提供的材质参数
 							var matex=(materials_json[dc.name]||{});
+							if(V(matex.is_hair,0)>0.5)
+							{
+								matex.roughness = 1;
+							}
 							//判断这个材质是不是应该在当前这个pass画的
 							if((V(matex.is_hair,0)>0.5)!=(pass==1)){
 								return;
 							}
 							//mesh
-							if(matex.obj_type<=0.7){
+							if(V(matex.obj_type,0.3)<0.25){
 								
 							}else{
 								//console.log(dc.mat.tex);
 								var mat=FaceUnity.CreateViewMatrix(
 									[-params.rotation[0],-params.rotation[1],-params.rotation[2],params.rotation[3]],
 									params.translation);
-								
-								
+								var mat_cam=FaceUnity.CreateViewMatrix(
+									[0,0,0,1],
+									params.translation);
 								if(V(matex.is_eye,dc.is_eye)){
 									/*
 									眼球需要先绕着眼球中心转一下瞳孔，再进入整个头部的刚体变换。
@@ -426,7 +446,7 @@
 
 
 								//if(dc.name.indexOf('body')>=0){
-								if(matex.obj_type>=1.4){
+								if(V(matex.obj_type,0.3)>0.75){
 									
 									//keep the rotation center invariant
 									var center=[3.329,-90.223,-4.394];
@@ -455,6 +475,12 @@
 								FaceUnity.RenderBlendshapeComponent(blendshape,dc,s_vert_shader,s_frag_shader,{
 									scales:[dc.scales[0]*SCALE,dc.scales[1]*SCALE,-dc.scales[2]*SCALE],
 									mat_view:mat,
+									mat_cam:mat_cam,
+									quatR1:[params.rotation[0],params.rotation[1],params.rotation[2],params.rotation[3]],
+									quatT1:[0,0,0],//[params.translation[0],params.translation[1],params.translation[2],1],
+									quatR2:[0,0,0,1],
+									quatT2:[0,0,0],//[mat2[12]-center[0],mat2[13]-center[1],mat2[14]-center[2]],
+									obj_type:V(matex.obj_type, 0.3),
 									mat_proj:FaceUnity.CreateProjectionMatrix(),
 									tex_albedo:tex_map[V(matex.tex_albedo,dc.mat.tex)],
 									tex_normal:tex_map[V(matex.tex_normal,"grey.png")],
@@ -483,7 +509,7 @@
 				/*for(var i=0;i<bg_board.length;i++){
 					FaceUnity.RenderBillboard(tex_bg,bg_board[i],bg_board[i].texture_frames[(frame_id)%bg_board[i].texture_frames.length]);
 				}*/
-				//背景
+				//背景不动
 				var scale=(20000/params.focal_length);
 				var scale_tex=Math.min(tex_bg.w/params.tracker_space_w,tex_bg.h/params.tracker_space_h);
 				var w_tex=(scale_tex*params.tracker_space_w)/tex_bg.w;
